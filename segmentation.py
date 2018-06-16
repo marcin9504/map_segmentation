@@ -31,7 +31,7 @@ def get_model():
     except:
         model = Sequential()
         model.add(Conv2D(32, (3, 3), input_shape=(window_size, window_size, 3), padding='same', activation='relu',
-                         kernel_constraint=maxnorm(3)))  # TODO change input layer(?)
+                         kernel_constraint=maxnorm(3), data_format="channels_last"))  # TODO change input layer(?)
         model.add(Dropout(0.2))
         model.add(Conv2D(32, (3, 3), activation='relu', padding='valid', kernel_constraint=maxnorm(3)))
         model.add(MaxPooling2D(pool_size=(2, 2)))
@@ -53,19 +53,29 @@ def save_model(net):
     net.save(model_filename)
 
 
+def slice_for_test(img, window):
+    rows, columns, _ = np.shape(img)
+    windows = np.empty((int(rows / window * columns / window), 2))
+    for r in range(0, rows, window):
+        for c in range(0, columns, window):
+            output = ([1, 0] if all(img[r + window // 2, c + window // 2] == 255) else [0, 1])
+            windows[int(r / window * columns / window + c / window)] = output
+    return windows
+
+
 def get_sliced_images(img_input, img_output):
     x_train = slice_image(img_input, window_size)
-    y_train = slice_image(img_output, window_size)
+    y_train = slice_for_test(img_output, window_size)
     # TODO change format of input/output
     return shuffle(x_train, y_train)
 
 
 def slice_image(img, window):
-    windows = []
     rows, columns, _ = np.shape(img)
+    windows = np.empty((int(rows / window * columns / window), window, window, 3))
     for r in range(0, rows, window):
         for c in range(0, columns, window):
-            windows.append(img[r:r + window, c:c + window])
+            windows[int(r / window * columns / window + c / window)] = img[r:r + window, c:c + window]
     return windows
 
 
