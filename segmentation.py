@@ -124,6 +124,7 @@ def get_unet_128(input_shape=(128, 128, 3),
                            custom_objects={'bce_dice_loss': bce_dice_loss,
                                            'dice_coeff': dice_coeff})
         print("Loaded saved model")
+        # model.summary()
         return model
     except Exception as e:
         print(e)
@@ -230,7 +231,7 @@ def get_unet_128(input_shape=(128, 128, 3),
 
         model = Model(inputs=inputs, outputs=classify)
 
-        model.compile(optimizer=RMSprop(lr=0.0001), loss=bce_dice_loss, metrics=[dice_coeff])
+        model.compile(optimizer=RMSprop(lr=0.01, decay=1e-6), loss=bce_dice_loss, metrics=[dice_coeff])
         model.summary()
     return model
 
@@ -251,8 +252,8 @@ def slice_for_test(img, window):
 
 
 def get_sliced_images(img_input, img_output):
-    img_input = cv2.resize(img_input, (128, 128))
-    img_output = cv2.resize(img_output, (128, 128))
+    # img_input = cv2.resize(img_input, (128, 128))
+    # img_output = cv2.resize(img_output, (128, 128))
     img_output = cv2.cvtColor(img_output, cv2.COLOR_BGR2GRAY)
     img_input = img_input / 255.
     img_output = img_output / 255.
@@ -279,62 +280,79 @@ def load_img(name):
 
 def train_model():
     filename_inputs = np.array(next(os.walk(train_loc_input))[2])
-    filename_outputs = np.array(next(os.walk(train_loc_output))[2])
-    filename_inputs, filename_outputs = shuffle(filename_inputs, filename_outputs)
+    # filename_outputs = np.array(next(os.walk(train_loc_output))[2])
+    filename_inputs = shuffle(filename_inputs)
     model = get_unet_128()
 
-    counter = 0
     image_number = 0
-    for iteration in range(100):
-        for filename_input, filename_output in zip(filename_inputs, filename_outputs):
+    for iteration in range(1000):
+        for filename_input in filename_inputs:
+            filename_output = filename_input[:-5] + ".tif"
             train_input = load_img(train_loc_input + filename_input)
             train_output = load_img(train_loc_output + filename_output)
-            print(str(image_number) + "/" + str(len(filename_outputs)) + ": " + str(iteration))
+            print(str(image_number) + "/" + str(len(filename_inputs)) + ": " + str(iteration))
             # x, y = prepare_data(train_input, train_output)
-            x, y = get_sliced_images(train_input, train_output)
-            model.fit(x, y, epochs=1)
+
+            train_input = cv2.resize(train_input, (1408, 1408))
+            train_output = cv2.resize(train_output, (1408, 1408))
+            for r in range(0, 1408, 128):
+                t_input = train_input[r:r + 128, :]
+                t_output = train_output[r:r + 128, :]
+                x, y = get_sliced_images(np.copy(t_input), np.copy(t_output))
+                model.fit(x, y, epochs=1)
             image_number += 1
-            counter += 1
-            if counter == 10:
-                counter = 0
-                save_model(model)
+            save_model(model)
         image_number = 0
     save_model(model)
 
 
 def test_model(visualise=False):
     filename_inputs = next(os.walk(test_loc_input))[2]
-    filename_outputs = next(os.walk(test_loc_output))[2]
+    # filename_outputs = next(os.walk(test_loc_output))[2]
     model = get_unet_128()
 
-    for filename_input, filename_output in zip(filename_inputs, filename_outputs):
+    for filename_input in filename_inputs:
+        filename_output = filename_input[:-5] + ".tif"
+        # print(filename_input, filename_output)
         test_input = load_img(test_loc_input + filename_input)
         test_output = load_img(test_loc_output + filename_output)
         # x, y = get_random_base_data_from_images(test_input, test_output)
-        x, y = get_sliced_images(test_input, test_output)
-
-        if visualise:
-            out = model.predict(x)
-            for a in x:
-                cv2.imshow('Input', a)
-                cv2.waitKey(1)
-            for a in y:
-                cv2.imshow('Output', a)
-                cv2.waitKey(1)
-            for a in out:
-                cv2.imshow('Prediction', a)
-                cv2.waitKey(3000)
-
-        loss, accuracy = model.evaluate(x, y)
-        print('Loss:', loss)
-        print('Accuracy:', accuracy)
+        # x, y = get_sliced_images(test_input, test_output)
+        # if visualise:
+        #     # out = model.predict(x)
+        #     cv2.imshow('Input', test_input)
+        #     cv2.waitKey(1)
+        #     cv2.imshow('Output', test_output)
+        #     cv2.waitKey(5000)
+        test_input = cv2.resize(test_input, (1408, 1408))
+        test_output = cv2.resize(test_output, (1408, 1408))
+        for r in range(0, 1408, 128):
+            for c in range(0, 1408, 128):
+                t_input = test_input[r:r + 128, c:c + 128]
+                t_output = test_output[r:r + 128, c:c + 128]
+                x, y = get_sliced_images(np.copy(t_input), np.copy(t_output))
+                out = model.predict(x)
+                loss, accuracy = model.evaluate(x, y)
+                print('Loss:', loss)
+                print('Accuracy:', accuracy)
+                if visualise:
+                    # out = model.predict(x)
+                    for a in x:
+                        cv2.imshow('Input', a)
+                        cv2.waitKey(1)
+                    for a in y:
+                        cv2.imshow('Output', a)
+                        cv2.waitKey(1)
+                    for a in out:
+                        cv2.imshow('Prediction', a)
+                        cv2.waitKey(3000)
 
 
 def main():
     # train
-    # train_model()
+    train_model()
     # test
-    test_model(visualise=False)
+    # test_model(visualise=True)
 
 
 if __name__ == '__main__':
