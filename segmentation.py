@@ -197,17 +197,8 @@ def test_model(visualise=False):
 
     for filename_input in filename_inputs:
         filename_output = filename_input[:-5] + ".tif"
-        # print(filename_input, filename_output)
         test_input = load_img(test_loc_input + filename_input)
         test_output = load_img(test_loc_output + filename_output)
-        # x, y = get_random_base_data_from_images(test_input, test_output)
-        # x, y = get_sliced_images(test_input, test_output)
-        # if visualise:
-        #     # out = model.predict(x)
-        #     cv2.imshow('Input', test_input)
-        #     cv2.waitKey(1)
-        #     cv2.imshow('Output', test_output)
-        #     cv2.waitKey(5000)
         test_input = cv2.resize(test_input, (1408, 1408))
         test_output = cv2.resize(test_output, (1408, 1408))
         for r in range(0, 1408, 128):
@@ -220,7 +211,6 @@ def test_model(visualise=False):
                 print('Loss:', loss)
                 print('Accuracy:', accuracy)
                 if visualise:
-                    # out = model.predict(x)
                     for a in x:
                         cv2.imshow('Input', a)
                         cv2.waitKey(1)
@@ -233,9 +223,7 @@ def test_model(visualise=False):
 
 
 def main():
-    # train
     # train_model()
-    # test
     test_model(visualise=True)
 
 

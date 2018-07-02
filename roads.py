@@ -95,14 +95,14 @@ def roads(img):
     img = cv2.resize(img, (1500, 1500))
     kernel = np.ones((5, 5), np.uint8)
     img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel)
-    _, img = cv2.threshold(img, 0.05, 1, cv2.THRESH_BINARY)
-    # cv2.imshow('Img2', cv2.resize(img, (800, 800)))
+    _, img = cv2.threshold(img, 0.10, 1, cv2.THRESH_BINARY)
+    # cv2.imshow('Img10', cv2.resize(img, (800, 800)))
     # cv2.waitKey(1000000)
     return img
 
 
 def main():
-    img = load_img('sat/10528735_15.tiff')
+    img = load_img('sat/10378690_15.tiff')
     output = roads(img)
     print(np.shape(output))
 
