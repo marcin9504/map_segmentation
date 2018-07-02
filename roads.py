@@ -2,29 +2,29 @@ import cv2
 import keras.backend as K
 import numpy as np
 from keras.losses import binary_crossentropy
-from keras.models import load_model
+from keras.models import load_model, model_from_json
 
 model_filename = "model.h5"
 
 window_size = 128
 
 
-def dice_coeff(y_true, y_pred):
-    smooth = 1.
-    y_true_f = K.flatten(y_true)
-    y_pred_f = K.flatten(y_pred)
-    intersection = K.sum(y_true_f * y_pred_f)
-    score = (2. * intersection + smooth) / (K.sum(y_true_f) + K.sum(y_pred_f) + smooth)
+# https://www.kaggle.com/c/carvana-image-masking-challenge/discussion/39973
+def dice_coeff(y, out):
+    y_f = K.flatten(y)
+    out_f = K.flatten(out)
+    intersection = K.sum(y_f * out_f)
+    score = (2. * intersection + 1.) / (K.sum(y_f) + K.sum(out_f) + 1.)
     return score
 
 
-def dice_loss(y_true, y_pred):
-    loss = 1 - dice_coeff(y_true, y_pred)
+def dice_loss(y, out):
+    loss = 1 - dice_coeff(y, out)
     return loss
 
 
-def bce_dice_loss(y_true, y_pred):
-    loss = binary_crossentropy(y_true, y_pred) + dice_loss(y_true, y_pred)
+def bce_dice_loss(y, out):
+    loss = binary_crossentropy(y, out) + dice_loss(y, out)
     return loss
 
 
@@ -55,8 +55,30 @@ def load_img(name):
     return img
 
 
+def get_model2():
+    json_file = open('json_model.json', 'r')
+    loaded_model_json = json_file.read()
+    json_file.close()
+    model = model_from_json(loaded_model_json,
+                            custom_objects={'bce_dice_loss': bce_dice_loss,
+                                            'dice_coeff': dice_coeff})
+    model.load_weights('weights-model.hdf5')
+    return model
+
+
+def save_model2(model):
+    f = open("json_model.json", 'w')
+    model_json = model.to_json()
+    f.write(model_json)
+    f.close()
+    model.save_weights('weights-model.hdf5')
+
+
 def get_image_from_net(test_input):
     model = get_model()
+    # save_model2(model)
+    # model = get_model2()
+
     test_input = cv2.resize(test_input, (1408, 1408))
     output_image = np.zeros([1408, 1408, 1])
     for r in range(0, 1408, 128):
@@ -73,16 +95,16 @@ def roads(img):
     img = cv2.resize(img, (1500, 1500))
     kernel = np.ones((5, 5), np.uint8)
     img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel)
-    _, img = cv2.threshold(img, 0.2, 1, cv2.THRESH_BINARY)
-    # cv2.imshow('Img', cv2.resize(img, (800, 800)))
+    _, img = cv2.threshold(img, 0.05, 1, cv2.THRESH_BINARY)
+    # cv2.imshow('Img2', cv2.resize(img, (800, 800)))
     # cv2.waitKey(1000000)
     return img
 
 
 def main():
-    img = load_img('train/sat/10078660_15.tiff')
+    img = load_img('sat/10528735_15.tiff')
     output = roads(img)
-    print(np.shape(img))
+    print(np.shape(output))
 
 
 if __name__ == '__main__':
